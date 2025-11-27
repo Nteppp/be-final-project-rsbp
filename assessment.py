@@ -1,8 +1,16 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Literal, Dict, Any
 
 app = FastAPI(title="Risk Profile Assessment Service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 GL_SCORING_KEY: Dict[int, Dict[str, int]] = {
     1: {"A": 4, "B": 3, "C": 2, "D": 1},
@@ -83,17 +91,16 @@ def calculate_gl_score(answers: List[Answer]) -> float:
     return float(score)
 
 def scale_to_bibit_score(gl_score: float) -> float:
-    # Linear Scaling Formula: Y = Y_min + ((X - X_min) * (Y_max - Y_min)) / (X_max - X_min)
-    X_min, X_max = 0.0, 47.0
+    X_min, X_max = 13.0, 47.0
     Y_min, Y_max = 1.0, 10.0
 
     if gl_score <= X_min:
         return Y_min
     if gl_score >= X_max:
         return Y_max
-        
-    unrounded_b_score = Y_min + (gl_score * (Y_max - Y_min) / (X_max - X_min))
-    
+
+    unrounded_b_score = Y_min + ((gl_score - X_min) * (Y_max - Y_min) / (X_max - X_min))
+
     step = 0.5
     rounded_b_score = round(unrounded_b_score / step) * step
 
